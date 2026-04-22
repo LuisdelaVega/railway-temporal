@@ -149,6 +149,10 @@ setup_elasticsearch() {
 
   if [ ! -f "${ES_TEMPLATE_FILE}" ]; then
     log "ERROR: ES template file not found at ${ES_TEMPLATE_FILE}"
+    log "Contents of $(dirname "${ES_TEMPLATE_FILE}"):"
+    ls -la "$(dirname "${ES_TEMPLATE_FILE}")" 2>&1 | sed 's/^/[entrypoint]   /' || log "  (directory does not exist)"
+    log "Searching the image for any index_template files:"
+    find /etc/temporal -name 'index_template*' 2>/dev/null | sed 's/^/[entrypoint]   /' || true
     exit 1
   fi
 
