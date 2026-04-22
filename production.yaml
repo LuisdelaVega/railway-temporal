@@ -1,0 +1,15 @@
+# Dynamic config for the Temporal server on Railway (production).
+#
+# This is baked into the image at /etc/temporal/config/dynamicconfig/production.yaml
+# and selected by the DYNAMIC_CONFIG_FILE_PATH env var in the Dockerfile.
+#
+# Notes:
+#   - We intentionally do NOT set system.forceSearchAttributesCacheRefreshOnRead,
+#     which the upstream dev config enables. That flag hammers the visibility
+#     store and is explicitly marked "Dev setup only" upstream.
+#   - limit.maxIDLength matches the dev config; 255 is the value the server
+#     expects when running against Postgres/ES.
+
+limit.maxIDLength:
+  - value: 255
+    constraints: {}
