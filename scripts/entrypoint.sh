@@ -11,6 +11,10 @@
 # All steps are idempotent, so restarts and redeploys are safe.
 
 set -eu
+# pipefail isn't POSIX but admin-tools ships bash/dash with it; we rely on it
+# so a failing command inside a pipe actually aborts the script.
+# shellcheck disable=SC3040
+(set -o pipefail 2>/dev/null) && set -o pipefail
 
 # ---- Required env (fail loudly if missing) -----------------------------------
 : "${POSTGRES_SEEDS:?POSTGRES_SEEDS is required (Postgres host)}"
@@ -66,28 +70,45 @@ es_curl() {
 }
 
 # ---- 1. Postgres: create DBs + run migrations --------------------------------
+# Idempotency strategy: use `temporal-sql-tool ping` against each target DB.
+# It exits 0 if the DB exists and is reachable, non-zero otherwise. This
+# avoids depending on psql being installed.
+pg_db_exists() {
+  db="$1"
+  temporal-sql-tool \
+    --plugin postgres12 \
+    --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
+    -u "${POSTGRES_USER}" \
+    --db "${db}" \
+    ping >/dev/null 2>&1
+}
+
 setup_postgres() {
   wait_for_tcp "${POSTGRES_SEEDS}" "${DB_PORT}" "Postgres"
 
-  # temporal-sql-tool picks up POSTGRES_PWD from env via SQL_PASSWORD
+  # temporal-sql-tool reads the password from SQL_PASSWORD.
   export SQL_PASSWORD="${POSTGRES_PWD}"
 
   for db in "${DBNAME}" "${VISIBILITY_DBNAME}"; do
-    log "Ensuring database '${db}' exists..."
-    temporal-sql-tool \
-      --plugin postgres12 \
-      --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
-      -u "${POSTGRES_USER}" \
-      --db "${db}" \
-      create-database --database "${db}" 2>&1 | grep -v "already exists" || true
+    if pg_db_exists "${db}"; then
+      log "Database '${db}' already exists"
+    else
+      log "Creating database '${db}'..."
+      # The tool uses --database-name (not --database) for create-database.
+      temporal-sql-tool \
+        --plugin postgres12 \
+        --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
+        -u "${POSTGRES_USER}" \
+        create-database --database-name "${db}"
 
-    log "Setting up schema for '${db}'..."
-    temporal-sql-tool \
-      --plugin postgres12 \
-      --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
-      -u "${POSTGRES_USER}" \
-      --db "${db}" \
-      setup-schema -v 0.0 2>&1 | grep -v "already" || true
+      log "Setting up initial schema version in '${db}'..."
+      temporal-sql-tool \
+        --plugin postgres12 \
+        --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
+        -u "${POSTGRES_USER}" \
+        --db "${db}" \
+        setup-schema -v 0.0
+    fi
   done
 
   log "Running main schema migrations..."
