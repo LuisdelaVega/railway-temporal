@@ -94,12 +94,15 @@ setup_postgres() {
       log "Database '${db}' already exists"
     else
       log "Creating database '${db}'..."
-      # The tool uses --database-name (not --database) for create-database.
+      # The database name is passed via the parent --db flag. The
+      # `create-database` subcommand itself takes only --defaultdb (the
+      # admin DB to connect to while issuing CREATE DATABASE).
       temporal-sql-tool \
         --plugin postgres12 \
         --ep "${POSTGRES_SEEDS}" -p "${DB_PORT}" \
         -u "${POSTGRES_USER}" \
-        create-database --database-name "${db}"
+        --db "${db}" \
+        create-database
 
       log "Setting up initial schema version in '${db}'..."
       temporal-sql-tool \
