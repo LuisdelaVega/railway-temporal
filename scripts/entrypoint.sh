@@ -32,6 +32,11 @@ ES_SCHEME="${ES_SCHEME:-http}"
 ES_PORT="${ES_PORT:-9200}"
 ES_VERSION="${ES_VERSION:-v7}"
 ES_VIS_INDEX="${ES_VIS_INDEX:-temporal_visibility_v1_prod}"
+# The Temporal server ships a single visibility index template file,
+# `index_template_v7.json`, which works for both ES 7.x and ES 8.x clusters
+# (the "v7" refers to the template schema version, not the ES server version).
+# ES_VERSION above controls runtime behavior and should match your cluster.
+ES_TEMPLATE_FILE="${ES_TEMPLATE_FILE:-/etc/temporal/schema/elasticsearch/visibility/index_template_v7.json}"
 # Optional ES basic auth
 ES_USER="${ES_USER:-}"
 ES_PWD="${ES_PWD:-}"
@@ -40,7 +45,6 @@ TEMPORAL_ADDRESS="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
 NAMESPACE_RETENTION="${NAMESPACE_RETENTION:-30d}"
 
 SCHEMA_DIR=/etc/temporal/schema/postgresql/v12
-ES_TEMPLATE_FILE="/etc/temporal/schema/elasticsearch/visibility/index_template_${ES_VERSION}.json"
 
 # ---- Small helpers -----------------------------------------------------------
 log() { echo "[entrypoint] $*"; }
