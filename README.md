@@ -49,9 +49,9 @@ rotations propagate automatically.
 > Railway's managed Postgres requires TLS. The embedded docker config reads
 > `SQL_TLS_ENABLED` and wires it through to both persistence and visibility.
 
-### Elasticsearch (your existing service)
+### Elasticsearch
 
-Created using:
+You can create an Elasticsearch service using this template: https://github.com/LuisdelaVega/railway-elasticsearch.
 
 | Var            | Set to                                      |
 | -------------- | ------------------------------------------- |
@@ -94,3 +94,11 @@ images publish matching tags for every release, so a single arg updates both.
 Before upgrading across minor/major versions, consult the upstream release
 notes at https://github.com/temporalio/temporal/releases — schema changes
 often require running the migration on a staged environment first.
+
+## Temporal UI
+
+You can add the temporal-ui service separately. When you're ready, add a second Railway service:
+
+- Image: `temporalio/ui:2.47.3`
+- Env: `TEMPORAL_ADDRESS=${{temporal-server.RAILWAY_PRIVATE_DOMAIN}}:7233`, `TEMPORAL_CORS_ORIGINS=https://your-app-domain.com`
+- Expose port 8080 publicly (and put auth in front of it — either Railway's password protection or the UI's OIDC support)
