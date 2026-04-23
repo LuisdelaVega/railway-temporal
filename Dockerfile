@@ -24,6 +24,13 @@ COPY --from=server /usr/local/bin/temporal-server /usr/local/bin/temporal-server
 COPY --from=server /usr/local/bin/dockerize /usr/local/bin/dockerize
 COPY --from=server /etc/temporal/config /etc/temporal/config
 
+# Admin-tools runs as UID 1000 (non-root). The COPY above lands files as root,
+# so the runtime user can't write `docker.yaml` into /etc/temporal/config when
+# dockerize renders the template. Give the temporal user ownership.
+USER root
+RUN chown -R 1000:1000 /etc/temporal/config
+USER 1000
+
 # Our production dynamic config.
 COPY config/production.yaml /etc/temporal/config/dynamicconfig/production.yaml
 
