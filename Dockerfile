@@ -26,6 +26,12 @@ COPY config/production.yaml /etc/temporal/config/dynamicconfig/production.yaml
 # Bootstrap + run entrypoint.
 COPY --chmod=755 scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
+# The server resolves --env docker -> config/docker.yaml relative to cwd.
+# The upstream server image sets its WORKDIR to /etc/temporal; admin-tools
+# does not, so we set it here explicitly. Without this the server exits with
+# "no config files found within config".
+WORKDIR /etc/temporal
+
 # Tell the server to use our dynamic config. Every other knob
 # (DB, ES, visibility backend) is driven by env vars that the embedded
 # docker.yaml template reads -- we set those in Railway, not here.
