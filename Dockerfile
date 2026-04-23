@@ -14,18 +14,12 @@ FROM temporalio/server:${TEMPORAL_VERSION} AS server
 
 FROM temporalio/admin-tools:${TEMPORAL_VERSION}
 
-# Copy the server binary and its embedded config templates from the server image.
-# The exact paths are stable across 1.2x releases; if a future upgrade moves
-# them, you'll see the COPY fail at build time.
+# Copy the server binary and its embedded config template from the server image.
+# Note: the server image ships `config_template.yaml` (not `docker.yaml`).
+# The upstream entrypoint renders it to docker.yaml at runtime by substituting
+# env vars. We do the same in our entrypoint.sh.
 COPY --from=server /usr/local/bin/temporal-server /usr/local/bin/temporal-server
 COPY --from=server /etc/temporal/config /etc/temporal/config
-
-# Sanity check: fail the build if docker.yaml didn't come over. Without this,
-# a silent COPY mismatch ships a broken image that only fails at runtime with
-# a confusing "no config files found within config" error.
-RUN test -f /etc/temporal/config/docker.yaml || \
-    (echo "BUILD ERROR: /etc/temporal/config/docker.yaml missing after COPY from server image. Check the layout of temporalio/server:${TEMPORAL_VERSION}." && \
-    ls -la /etc/temporal/config/ 2>&1 && exit 1)
 
 # Our production dynamic config.
 COPY config/production.yaml /etc/temporal/config/dynamicconfig/production.yaml

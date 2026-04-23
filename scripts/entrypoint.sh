@@ -178,13 +178,44 @@ setup_elasticsearch() {
 }
 
 # ---- 3. Start Temporal server in the background -----------------------------
+# The server image ships `config_template.yaml`, not `docker.yaml` — its own
+# upstream entrypoint renders the template with env-var substitution before
+# starting the server. We replicate that step here.
+render_config() {
+  template=/etc/temporal/config/config_template.yaml
+  output=/etc/temporal/config/docker.yaml
+
+  if [ ! -f "${template}" ]; then
+    log "ERROR: template not found at ${template}"
+    ls -la /etc/temporal/config/ 2>&1 | sed 's/^/[entrypoint]   /'
+    exit 1
+  fi
+
+  if [ -f "${output}" ]; then
+    log "docker.yaml already rendered; skipping"
+    return
+  fi
+
+  log "Rendering ${template} -> ${output}..."
+  if command -v dockerize >/dev/null 2>&1; then
+    dockerize -template "${template}:${output}"
+  elif command -v envsubst >/dev/null 2>&1; then
+    envsubst < "${template}" > "${output}"
+  else
+    log "ERROR: neither dockerize nor envsubst found; cannot render config template"
+    log "Available tools in PATH:"
+    ls /usr/local/bin /usr/bin 2>/dev/null | grep -iE 'dockerize|envsubst|gettext' | sed 's/^/[entrypoint]   /' || true
+    exit 1
+  fi
+  log "Config rendered"
+}
+
 start_server() {
+  render_config
+
   log "Starting Temporal server..."
-  # Diagnostic: log what's actually shipped in the config tree. If this is
-  # missing or shaped differently than we expect, the server won't start.
   log "Config tree at /etc/temporal/config:"
   ls -la /etc/temporal/config 2>&1 | sed 's/^/[entrypoint]   /' || true
-  log "docker.yaml present? $(ls /etc/temporal/config/docker.yaml 2>/dev/null || echo 'NO')"
 
   # Use --root to pin the base directory absolutely. Without it, the server
   # resolves `configDir=config` relative to its cwd, which is not reliable
