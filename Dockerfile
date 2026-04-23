@@ -14,11 +14,14 @@ FROM temporalio/server:${TEMPORAL_VERSION} AS server
 
 FROM temporalio/admin-tools:${TEMPORAL_VERSION}
 
-# Copy the server binary and its embedded config template from the server image.
-# Note: the server image ships `config_template.yaml` (not `docker.yaml`).
-# The upstream entrypoint renders it to docker.yaml at runtime by substituting
-# env vars. We do the same in our entrypoint.sh.
+# Copy the server binary, its embedded config template, and `dockerize`
+# from the server image.
+# - config_template.yaml (not docker.yaml) is what ships; the upstream
+#   entrypoint renders it to docker.yaml at runtime via `dockerize`.
+# - dockerize is a small Go binary that does Go-template substitution of
+#   env vars. We need it because admin-tools doesn't include it.
 COPY --from=server /usr/local/bin/temporal-server /usr/local/bin/temporal-server
+COPY --from=server /usr/local/bin/dockerize /usr/local/bin/dockerize
 COPY --from=server /etc/temporal/config /etc/temporal/config
 
 # Our production dynamic config.
