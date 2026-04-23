@@ -180,10 +180,16 @@ setup_elasticsearch() {
 # ---- 3. Start Temporal server in the background -----------------------------
 start_server() {
   log "Starting Temporal server..."
-  # The upstream server image's default CMD is `temporal-server --env docker start`
-  # which uses the embedded template driven by the env vars we're setting in
-  # the Dockerfile. We invoke it directly here.
-  temporal-server --env docker start &
+  # Diagnostic: log what's actually shipped in the config tree. If this is
+  # missing or shaped differently than we expect, the server won't start.
+  log "Config tree at /etc/temporal/config:"
+  ls -la /etc/temporal/config 2>&1 | sed 's/^/[entrypoint]   /' || true
+  log "docker.yaml present? $(ls /etc/temporal/config/docker.yaml 2>/dev/null || echo 'NO')"
+
+  # Use --root to pin the base directory absolutely. Without it, the server
+  # resolves `configDir=config` relative to its cwd, which is not reliable
+  # across base images (admin-tools vs server).
+  temporal-server --root /etc/temporal --env docker start &
   SERVER_PID=$!
   log "Server PID: ${SERVER_PID}"
 }

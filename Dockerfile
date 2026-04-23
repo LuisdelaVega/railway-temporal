@@ -20,6 +20,13 @@ FROM temporalio/admin-tools:${TEMPORAL_VERSION}
 COPY --from=server /usr/local/bin/temporal-server /usr/local/bin/temporal-server
 COPY --from=server /etc/temporal/config /etc/temporal/config
 
+# Sanity check: fail the build if docker.yaml didn't come over. Without this,
+# a silent COPY mismatch ships a broken image that only fails at runtime with
+# a confusing "no config files found within config" error.
+RUN test -f /etc/temporal/config/docker.yaml || \
+    (echo "BUILD ERROR: /etc/temporal/config/docker.yaml missing after COPY from server image. Check the layout of temporalio/server:${TEMPORAL_VERSION}." && \
+    ls -la /etc/temporal/config/ 2>&1 && exit 1)
+
 # Our production dynamic config.
 COPY config/production.yaml /etc/temporal/config/dynamicconfig/production.yaml
 
